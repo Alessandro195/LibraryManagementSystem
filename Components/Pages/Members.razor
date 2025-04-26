@@ -1,0 +1,101 @@
+﻿@page "/members"
+@using LibraryManagementSystem.Models
+@using LibraryManagementSystem.Services
+
+<h3>Add Member</h3>
+
+<div class="mb-2">
+    <label for="memberIdInput">Member ID (6-digit)</label>
+    <input id="memberIdInput" @bind="newMember.Id" class="form-control" @onblur="ValidateMemberId" />
+</div>
+<div class="mb-2">
+    <label for="fullNameInput">Full Name</label>
+    <input id="fullNameInput" @bind="newMember.FullName" class="form-control" />
+</div>
+<div class="mb-2">
+    <label for="emailInput">Email</label>
+    <input id="emailInput" @bind="newMember.Email" class="form-control" />
+</div>
+@if (!string.IsNullOrEmpty(memberValidationMessage))
+{
+    <div class="alert alert-warning">@memberValidationMessage</div>
+}
+<button @onclick="AddMember" class="btn btn-primary mb-3" disabled="@(!memberCanSubmit)">Add Member</button>
+
+@if (members == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <h4>Member List</h4>
+    <table class="table">
+        <thead>
+            <tr><th>Member ID</th><th>Full Name</th><th>Email</th><th>Join Date</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var member in members)
+            {
+                <tr>
+                    <td>@member.Id</td>
+                    <td>@member.FullName</td>
+                    <td>@member.Email</td>
+                    <td>@member.JoinDate.ToShortDateString()</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" @onclick="() => DeleteMember(member.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Member> members;
+    private Member newMember = new() { JoinDate = DateTime.Now };
+    private string memberValidationMessage = string.Empty;
+    private bool memberCanSubmit = true;
+
+    protected override void OnInitialized()
+    {
+        LoadMembers();
+    }
+
+    private void LoadMembers()
+    {
+        var service = new MemberService();
+        members = service.GetMembers();
+    }
+
+    private void AddMember()
+    {
+        ValidateMemberId();
+        if (!memberCanSubmit) return;
+
+        var service = new MemberService();
+        service.AddMember(newMember);
+        newMember = new Member { JoinDate = DateTime.Now };
+        LoadMembers();
+    }
+
+    private void DeleteMember(int id)
+    {
+        var service = new MemberService();
+        service.DeleteMember(id);
+        LoadMembers();
+    }
+
+    private void ValidateMemberId()
+    {
+        if (newMember.Id.ToString().Length != 6)
+        {
+            memberValidationMessage = "Member ID must be exactly 6 digits.";
+            memberCanSubmit = false;
+        }
+        else
+        {
+            memberValidationMessage = string.Empty;
+            memberCanSubmit = true;
+        }
+    }
+}

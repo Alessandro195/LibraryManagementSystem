@@ -1,0 +1,152 @@
+﻿@page "/loans"
+@using LibraryManagementSystem.Models
+@using LibraryManagementSystem.Services
+
+<h3> Add Loan</h3>
+
+<div class="mb-2">
+    <label for="memberIdSelect">Select Member</label>
+    <select id="memberIdSelect" class="form-control"
+            @bind="newLoan.MemberId">
+        <option value="0">-- Choose a Member --</option>
+        @foreach (var member in membersList)
+        {
+            <option value="@member.Id">@member.FullName (@member.Id)</option>
+        }
+    </select>
+</div>
+<div class="mb-2">
+    <label for="bookIdSelect">Select Book</label>
+    <select id="bookIdSelect" class="form-control"
+            @bind="newLoan.BookId">
+        <option value="0">-- Choose a Book --</option>
+        @foreach (var book in booksList)
+        {
+            <option value="@book.Id">@book.Title (@book.Id)</option>
+        }
+    </select>
+</div>
+@if (!string.IsNullOrEmpty(validationMessage))
+{
+    <div class="alert alert-warning">@validationMessage</div>
+}
+<button @onclick="AddLoan" class="btn btn-primary mb-3" disabled="@(canSubmit == false)">Add Loan</button>
+
+@if (loans == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <h4>Loan Records</h4>
+    <table class="table">
+        <thead>
+            <tr><th>Member</th><th>Book</th><th>Borrow Date</th><th>Return Date</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var loan in loans)
+            {
+                var memberName = membersList.FirstOrDefault(m => m.Id == loan.MemberId)?.FullName ?? "Unknown";
+                var bookTitle = booksList.FirstOrDefault(b => b.Id == loan.BookId)?.Title ?? "Unknown";
+                <tr>
+                    <td>@memberName (@loan.MemberId)</td>
+                    <td>@bookTitle (@loan.BookId)</td>
+                    <td>@loan.BorrowDate.ToShortDateString()</td>
+                    <td>@(loan.ReturnDate?.ToShortDateString() ?? "Not Returned")</td>
+                    <td>
+                        @if (loan.ReturnDate == null)
+                        {
+                            <button class="btn btn-success btn-sm" @onclick="() => MarkAsReturned(loan.Id)">Return</button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-danger btn-sm" @onclick="() => DeleteLoan(loan.Id)">Delete</button>
+                        }
+                    </td>
+
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Loan> loans;
+    private Loan newLoan = new() { BorrowDate = DateTime.Now };
+    private bool canSubmit = true;
+    private string validationMessage = string.Empty;
+    private List<Member> membersList = new();
+    private List<Book> booksList = new();
+
+    protected override void OnInitialized()
+    {
+        LoadLoans();
+        membersList = new MemberService().GetMembers();
+        booksList = new BookService().GetBooks();
+    }
+
+    private void LoadLoans()
+    {
+        var service = new LoanService();
+        loans = service.GetLoans();
+    }
+
+    private void AddLoan()
+    {
+        ValidateMemberId();
+        ValidateBookId();
+        if (!canSubmit) return;
+
+        var service = new LoanService();
+        service.AddLoan(newLoan);
+        newLoan = new Loan { BorrowDate = DateTime.Now };
+        LoadLoans();
+    }
+
+    private void MarkAsReturned(int loanId)
+    {
+        var service = new LoanService();
+        var loan = loans.FirstOrDefault(l => l.Id == loanId);
+        if (loan != null)
+        {
+            loan.ReturnDate = DateTime.Now;
+            service.UpdateLoan(loan);
+            LoadLoans();
+        }
+    }
+
+    private void DeleteLoan(int id)
+    {
+        var service = new LoanService();
+        service.DeleteLoan(id);
+        LoadLoans();
+    }
+
+    private void ValidateMemberId()
+    {
+        if (newLoan.MemberId.ToString().Length != 6)
+        {
+            validationMessage = "Member ID must be exactly 6 digits.";
+            canSubmit = false;
+        }
+        else
+        {
+            validationMessage = string.Empty;
+            canSubmit = true;
+        }
+    }
+
+    private void ValidateBookId()
+    {
+        if (newLoan.BookId.ToString().Length != 6)
+        {
+            validationMessage = "Book ID must be exactly 6 digits.";
+            canSubmit = false;
+        }
+        else
+        {
+            validationMessage = string.Empty;
+            canSubmit = true;
+        }
+    }
+}

@@ -1,0 +1,132 @@
+﻿@page "/books"
+@using LibraryManagementSystem.Models
+@using LibraryManagementSystem.Services
+
+<h2>Search</h2>
+
+<form @onsubmit="HandleSearchSubmit" class="mb-3 d-flex gap-2">
+    <input @bind="searchText" class="form-control" placeholder="Search books..." />
+    <button type="submit" class="btn btn-secondary">Search</button>
+    <button type="button" class="btn btn-outline-secondary" @onclick="ClearSearch">Clear</button>
+</form>
+
+<h3>Add Book</h3>
+<div class="mb-2">
+    <label for="bookIdInput">Book ID (6-digit)</label>
+    <input id="bookIdInput" @bind="newBook.Id" class="form-control" @onblur="ValidateBookId" />
+</div>
+<div class="mb-2">
+    <label for="titleInput">Title</label>
+    <input id="titleInput" @bind="newBook.Title" class="form-control" />
+</div>
+<div class="mb-2">
+    <label for="authorInput">Author</label>
+    <input id="authorInput" @bind="newBook.Author" class="form-control" />
+</div>
+@if (!string.IsNullOrEmpty(bookValidationMessage))
+{
+    <div class="alert alert-warning">@bookValidationMessage</div>
+}
+<button @onclick="AddBook" class="btn btn-primary mb-3" disabled="@(!bookCanSubmit)">Add Book</button>
+
+@if (filteredBooks == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <h4>Book List</h4>
+    <table class="table">
+        <thead>
+            <tr><th>Book ID</th><th>Title</th><th>Author</th><th>Available</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var book in filteredBooks)
+            {
+                <tr>
+                    <td>@book.Id</td>
+                    <td>@book.Title</td>
+                    <td>@book.Author</td>
+                    <td>@(book.IsAvailable ? "Yes" : "No")</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" @onclick="() => DeleteBook(book.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Book> books;
+    private List<Book> filteredBooks;
+    private Book newBook = new() { IsAvailable = true };
+    private string searchText = string.Empty;
+    private string bookValidationMessage = string.Empty;
+    private bool bookCanSubmit = true;
+
+    protected override void OnInitialized()
+    {
+        LoadBooks();
+    }
+
+    private void LoadBooks()
+    {
+        var service = new BookService();
+        books = service.GetBooks();
+        FilterBooks();
+    }
+
+    private void AddBook()
+    {
+        ValidateBookId();
+        if (!bookCanSubmit) return;
+
+        var service = new BookService();
+        service.AddBook(newBook);
+        newBook = new Book { IsAvailable = true };
+        LoadBooks();
+    }
+
+    private void DeleteBook(int id)
+    {
+        var service = new BookService();
+        service.DeleteBook(id);
+        LoadBooks();
+    }
+
+    private Task HandleSearchSubmit()
+    {
+        FilterBooks();
+        return Task.CompletedTask;
+    }
+
+    private void ClearSearch()
+    {
+        searchText = string.Empty;
+        FilterBooks();
+    }
+
+    private void FilterBooks()
+    {
+        if (string.IsNullOrWhiteSpace(searchText))
+            filteredBooks = books;
+        else
+            filteredBooks = books.Where(b => b.Title.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                                              b.Author.Contains(searchText, StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+
+    private void ValidateBookId()
+    {
+        if (newBook.Id.ToString().Length != 6)
+        {
+            bookValidationMessage = "Book ID must be exactly 6 digits.";
+            bookCanSubmit = false;
+        }
+        else
+        {
+            bookValidationMessage = string.Empty;
+            bookCanSubmit = true;
+        }
+    }
+}
